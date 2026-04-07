@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Smart Hospital BI — نظام إدارة المستشفى الذكي</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Poppins:wght@300;400;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+/* ══════════════════════════════════
+   RESET & ROOT VARIABLES
+══════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --rose:#e8629a;--rose2:#f472b6;--rose-l:#fce7f3;--rose-m:#fbcfe8;
+  --violet:#8b5cf6;--violet-l:#ede9fe;
+  --teal:#0d9488;--teal-l:#ccfbf1;
+  --sky:#0ea5e9;--sky-l:#e0f2fe;
+  --peach:#f97316;--peach-l:#ffedd5;
+  --mint:#10b981;--mint-l:#d1fae5;
+  --amber:#f59e0b;--amber-l:#fef3c7;
+  --red:#ef4444;--red-l:#fee2e2;
+  --lav:#818cf8;--lav-l:#eef2ff;
+  --text:#1e1b4b;--muted:#6b7280;
+  --bg:#fdf6fb;--card:#fff;
+  /* Fluid typography base */
+  --fs-xs:clamp(8px,1.2vw,11px);
+  --fs-sm:clamp(10px,1.4vw,13px);
+  --fs-md:clamp(12px,1.7vw,15px);
+  --fs-lg:clamp(16px,2.2vw,22px);
+  --fs-xl:clamp(22px,3vw,32px);
+  --fs-2xl:clamp(28px,4vw,48px);
+  --gap:clamp(8px,1.5vw,16px);
+  --pad:clamp(12px,2vw,22px);
+  --r:clamp(10px,1.5vw,18px);
+}
+
+html,body{width:100%;height:100%;overflow:hidden;background:#0b0814;font-family:'Cairo',sans-serif;}
+
+/* ══ LAYOUT ══ */
+#video{width:100%;height:100%;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.scene{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .65s ease;overflow:hidden;flex-direction:column;}
+.scene.active{opacity:1;pointer-events:all;}
+.scene-light{background:linear-gradient(135deg,#fdf6fb 0%,#f4f0ff 50%,#fce7f3 100%);}
+.scene-light::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 88% 8%,rgba(232,98,154,.06),transparent 42%),radial-gradient(circle at 8% 92%,rgba(139,92,246,.06),transparent 42%);pointer-events:none;}
+
+/* ══ PROGRESS ══ */
+#pbar{position:fixed;bottom:0;left:0;right:0;height:4px;background:rgba(255,255,255,.1);z-index:999;}
+#pfill{height:100%;background:linear-gradient(90deg,var(--rose),var(--violet),var(--sky),var(--mint));width:0%;transition:width .4s linear;}
+
+/* ══ CONTROLS — fully responsive ══ */
+#ctrl{
+  position:fixed;bottom:clamp(8px,2vh,16px);left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:clamp(6px,1vw,12px);z-index:1000;
+  background:rgba(11,8,20,.88);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.12);border-radius:50px;
+  padding:clamp(5px,1vh,8px) clamp(10px,2vw,20px);
+}
+.cb{width:clamp(28px,4vw,36px);height:clamp(28px,4vw,36px);border-radius:50%;border:none;cursor:pointer;background:rgba(255,255,255,.1);color:#fff;font-size:clamp(12px,1.6vw,16px);display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.cb:hover{background:rgba(232,98,154,.35);}
+.cb.play{width:clamp(34px,4.5vw,42px);height:clamp(34px,4.5vw,42px);background:var(--rose);}
+.cb.play:hover{background:var(--rose2);transform:scale(1.06);}
+.cdots{display:flex;gap:clamp(3px,.5vw,5px);}
+.cdot{width:clamp(5px,.7vw,7px);height:clamp(5px,.7vw,7px);border-radius:50%;background:rgba(255,255,255,.2);cursor:pointer;transition:all .3s;}
+.cdot.on{background:var(--rose);width:clamp(14px,2vw,18px);border-radius:4px;}
+.clbl{font-family:'Poppins',sans-serif;font-size:clamp(9px,1.2vw,11px);color:rgba(255,255,255,.4);letter-spacing:1px;min-width:44px;text-align:center;}
+
+/* ══ SCENE TYPOGRAPHY ══ */
+.scene-num{font-family:'Poppins',sans-serif;font-size:var(--fs-xs);letter-spacing:3px;text-transform:uppercase;color:var(--rose);margin-bottom:clamp(4px,.8vh,8px);display:flex;align-items:center;gap:6px;}
+.scene-num::before{content:'';width:18px;height:2px;background:var(--rose);border-radius:2px;}
+.scene-h{font-size:var(--fs-xl);font-weight:900;color:var(--text);margin-bottom:3px;line-height:1.15;}
+.scene-h span{color:var(--rose);}
+.scene-p{font-size:var(--fs-xs);color:var(--muted);}
+.s-header{text-align:center;margin-bottom:clamp(12px,2vh,22px);position:relative;z-index:2;flex-shrink:0;}
+
+/* ══ CARD BASE ══ */
+.card{background:#fff;border-radius:var(--r);padding:var(--pad);border:1.5px solid rgba(0,0,0,.05);box-shadow:0 4px 18px rgba(0,0,0,.07);}
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:var(--fs-xs);font-weight:700;}
+.pg{background:var(--mint-l);color:var(--teal);}
+.pr{background:var(--red-l);color:var(--red);}
+.po{background:var(--amber-l);color:var(--amber);}
+.pb{background:var(--sky-l);color:var(--sky);}
+.pv{background:var(--violet-l);color:var(--violet);}
+
+/* ══ FADE ANIMATIONS ══ */
+.fi{opacity:0;transform:translateY(12px);animation:fadeIn .5s ease forwards;}
+@keyframes fadeIn{to{opacity:1;transform:translateY(0);}}
+.fi1{animation-delay:.07s}.fi2{animation-delay:.14s}.fi3{animation-delay:.21s}
+.fi4{animation-delay:.28s}.fi5{animation-delay:.35s}.fi6{animation-delay:.42s}
+
+/* ══════════════════════════════════
+   SCENE 0 — INTRO
+══════════════════════════════════ */
+#s0{background:radial-gradient(ellipse at 50% 50%,#1a0a2e 0%,#0b0814 70%);}
+.s0-par{position:absolute;inset:0;overflow:hidden;}
+.par{position:absolute;border-radius:50%;animation:parFloat linear infinite;}
+@keyframes parFloat{0%{transform:translateY(100vh) scale(0);opacity:0;}10%{opacity:.8;}90%{opacity:.3;}100%{transform:translateY(-10vh) scale(1.5);opacity:0;}}
+.ring{position:absolute;border-radius:50%;border:1px solid rgba(232,98,154,.15);animation:ringPulse 4s ease-in-out infinite;}
+@keyframes ringPulse{0%{transform:scale(.8) translate(-50%,-50%);opacity:0;}50%{opacity:1;}100%{transform:scale(2.5) translate(-50%,-50%);opacity:0;}}
+.s0-c{text-align:center;position:relative;z-index:2;padding:var(--pad);}
+.s0-logo{width:clamp(60px,9vw,90px);height:clamp(60px,9vw,90px);border-radius:clamp(14px,2vw,22px);background:linear-gradient(135deg,var(--rose-l),var(--violet-l));display:flex;align-items:center;justify-content:center;font-size:clamp(30px,5vw,46px);margin:0 auto clamp(14px,2.5vh,20px);animation:logoPulse 2s ease-in-out infinite;box-shadow:0 0 50px rgba(232,98,154,.3);}
+@keyframes logoPulse{0%,100%{box-shadow:0 0 40px rgba(232,98,154,.25);}50%{box-shadow:0 0 80px rgba(232,98,154,.55);}}
+.s0-title{font-size:var(--fs-2xl);font-weight:900;color:#fff;line-height:1.1;margin-bottom:6px;}
+.s0-title span{background:linear-gradient(135deg,var(--rose),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.s0-sub{font-family:'Poppins',sans-serif;font-size:var(--fs-xs);color:rgba(255,255,255,.45);letter-spacing:3px;text-transform:uppercase;margin-bottom:clamp(16px,3vh,28px);}
+.s0-tags{display:flex;gap:clamp(6px,1vw,10px);justify-content:center;direction:ltr;flex-wrap:wrap;}
+.s0-tag{padding:clamp(5px,1vh,8px) clamp(10px,1.5vw,18px);border-radius:20px;border:1.5px solid;font-family:'Poppins',sans-serif;font-size:var(--fs-xs);font-weight:600;}
+.s0-tag.a{border-color:rgba(13,148,136,.5);color:var(--teal);background:rgba(13,148,136,.1);}
+.s0-tag.b{border-color:rgba(14,165,233,.5);color:var(--sky);background:rgba(14,165,233,.1);}
+.s0-tag.c{border-color:rgba(16,185,129,.5);color:var(--mint);background:rgba(16,185,129,.1);}
+.s0-tag.d{border-color:rgba(232,98,154,.5);color:var(--rose);background:rgba(232,98,154,.1);}
+.s0-tag.e{border-color:rgba(139,92,246,.5);color:var(--violet);background:rgba(139,92,246,.1);}
+.s0-author{margin:clamp(16px,3vh,28px) auto 0;max-width:clamp(280px,45vw,380px);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:var(--r);padding:clamp(10px,2vh,14px) clamp(14px,2vw,20px);display:flex;align-items:center;gap:12px;direction:ltr;}
+.s0-crown{font-size:clamp(20px,3vw,26px);}
+.s0-name{font-size:var(--fs-md);font-weight:700;color:#fff;}
+.s0-role{font-size:var(--fs-xs);color:rgba(255,255,255,.4);font-family:'Poppins',sans-serif;}
+
+/* ══════════════════════════════════
+   SCENE 1 — KPIs
+══════════════════════════════════ */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);width:clamp(300px,90vw,1000px);position:relative;z-index:2;}
+@media(max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+.kpi-c{background:#fff;border-radius:var(--r);padding:clamp(12px,1.5vh,18px) clamp(10px,1.2vw,14px);text-align:center;border:1.5px solid rgba(0,0,0,.05);box-shadow:0 4px 18px rgba(0,0,0,.07);position:relative;overflow:hidden;transform:translateY(28px);opacity:0;transition:transform .5s ease,opacity .5s ease;}
+.kpi-c.show{transform:translateY(0);opacity:1;}
+.kpi-c::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--kc);}
+.kpi-ic{font-size:clamp(20px,3vw,26px);margin-bottom:clamp(4px,.8vh,8px);}
+.kpi-v{font-family:'JetBrains Mono',monospace;font-size:clamp(20px,3vw,28px);font-weight:700;color:var(--kc);line-height:1;}
+.kpi-l{font-size:var(--fs-xs);color:var(--muted);margin-top:3px;}
+.kpi-b{font-size:clamp(8px,1.1vw,10px);font-weight:700;padding:2px 7px;border-radius:10px;margin-top:6px;display:inline-block;}
+.up{background:var(--mint-l);color:var(--teal);}
+.dn{background:var(--red-l);color:var(--red);}
+.nt{background:var(--amber-l);color:var(--amber);}
+.bls{background:var(--sky-l);color:var(--sky);}
+
+/* ══════════════════════════════════
+   SCENE 2 — BEDS (with Doughnut Charts)
+══════════════════════════════════ */
+.beds-wrap{width:clamp(300px,90vw,1020px);position:relative;z-index:2;}
+.beds-top-row{display:grid;grid-template-columns:1fr 1.8fr;gap:var(--gap);margin-bottom:var(--gap);}
+@media(max-width:650px){.beds-top-row{grid-template-columns:1fr;}}
+.beds-hero{background:#fff;border-radius:var(--r);padding:var(--pad);box-shadow:0 6px 24px rgba(0,0,0,.08);border:1.5px solid rgba(0,0,0,.05);display:flex;flex-direction:column;justify-content:center;}
+.beds-pct-big{font-family:'JetBrains Mono',monospace;font-size:clamp(36px,5vw,54px);font-weight:700;background:linear-gradient(135deg,var(--rose),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;}
+.beds-bar-wrap{background:#f1f5f9;border-radius:50px;height:clamp(7px,1vh,11px);overflow:hidden;margin:clamp(8px,1.2vh,12px) 0;}
+.beds-bar-fill{height:100%;border-radius:50px;background:linear-gradient(90deg,var(--rose),var(--violet),var(--teal));width:0%;position:relative;overflow:hidden;transition:width 1.5s ease;}
+.beds-bar-fill::after{content:'';position:absolute;top:0;left:-100%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent);animation:shine 2s infinite;}
+@keyframes shine{0%{left:-50%}100%{left:160%}}
+/* Doughnut grid — 3 charts across */
+.beds-donut-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap);}
+@media(max-width:600px){.beds-donut-grid{grid-template-columns:repeat(2,1fr);}}
+.donut-card{background:#fff;border-radius:var(--r);padding:clamp(10px,1.5vh,16px) clamp(10px,1.2vw,14px);box-shadow:0 4px 14px rgba(0,0,0,.07);border:1.5px solid rgba(0,0,0,.05);display:flex;flex-direction:column;align-items:center;position:relative;overflow:hidden;transform:scale(.9);opacity:0;transition:transform .45s ease,opacity .45s ease;}
+.donut-card.show{transform:scale(1);opacity:1;}
+.donut-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--dc);}
+.donut-canvas-wrap{width:clamp(80px,11vw,110px);height:clamp(80px,11vw,110px);position:relative;}
+.donut-center-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.donut-pct{font-family:'JetBrains Mono',monospace;font-size:clamp(14px,2vw,18px);font-weight:700;}
+.donut-used{font-size:clamp(8px,1vw,10px);color:var(--muted);}
+.donut-dept{font-size:var(--fs-xs);font-weight:700;margin-top:clamp(5px,.8vh,8px);}
+.donut-sub{font-size:clamp(8px,1vw,10px);color:var(--muted);}
+.donut-legend{display:flex;gap:8px;margin-top:6px;}
+.dleg{display:flex;align-items:center;gap:3px;font-size:clamp(8px,1vw,10px);color:var(--muted);}
+.dleg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+/* ══════════════════════════════════
+   SCENE 3 — PATIENTS
+══════════════════════════════════ */
+.table-wrap{width:clamp(300px,90vw,1060px);position:relative;z-index:2;}
+.tbl-container{overflow-x:auto;border-radius:var(--r);border:1.5px solid rgba(0,0,0,.05);box-shadow:0 4px 18px rgba(0,0,0,.07);}
+.tbl{width:100%;border-collapse:collapse;min-width:560px;}
+.tbl thead tr{background:linear-gradient(135deg,var(--rose),var(--violet));}
+.tbl th{padding:clamp(6px,1vh,10px) clamp(6px,1vw,12px);color:rgba(255,255,255,.9);font-size:var(--fs-xs);font-weight:700;text-align:right;white-space:nowrap;}
+.tbl tbody tr:hover{background:#fdf6fb;}
+.tbl tbody td{padding:clamp(7px,1.1vh,11px) clamp(6px,1vw,12px);font-size:var(--fs-xs);color:var(--text);border-bottom:1px solid #f1f5f9;white-space:nowrap;}
+.tbl tbody tr:last-child td{border:none;}
+.pat-stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);margin-top:var(--gap);}
+@media(max-width:600px){.pat-stat-row{grid-template-columns:repeat(2,1fr);}}
+.pat-stat-card{background:#fff;border-radius:var(--r);padding:clamp(10px,1.5vh,14px);text-align:center;border:1.5px solid rgba(0,0,0,.05);box-shadow:0 2px 10px rgba(0,0,0,.06);}
+
+/* ══════════════════════════════════
+   SCENE 4 — DOCTORS
+══════════════════════════════════ */
+.doc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap);width:clamp(300px,90vw,960px);position:relative;z-index:2;}
+@media(max-width:600px){.doc-grid{grid-template-columns:repeat(2,1fr);}}
+.doc-c{background:#fff;border-radius:var(--r);padding:clamp(14px,2vh,18px) clamp(10px,1.5vw,14px);text-align:center;box-shadow:0 6px 22px rgba(0,0,0,.07);border:1.5px solid rgba(0,0,0,.05);transform:translateY(25px);opacity:0;transition:transform .5s ease,opacity .5s ease;}
+.doc-c.show{transform:translateY(0);opacity:1;}
+.doc-av{width:clamp(44px,6vw,54px);height:clamp(44px,6vw,54px);border-radius:clamp(12px,1.5vw,16px);display:flex;align-items:center;justify-content:center;font-size:clamp(20px,3vw,26px);margin:0 auto clamp(8px,1.2vh,10px);border:2.5px solid;}
+.doc-nm{font-size:var(--fs-sm);font-weight:700;color:var(--text);margin-bottom:2px;}
+.doc-sp{font-size:var(--fs-xs);color:var(--muted);margin-bottom:8px;}
+.doc-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:8px;}
+.doc-stat{background:#f9fafb;border-radius:8px;padding:clamp(4px,.8vh,7px) 3px;text-align:center;}
+.doc-stat-v{font-family:'JetBrains Mono',monospace;font-size:clamp(12px,1.8vw,15px);font-weight:700;}
+.doc-stat-l{font-size:clamp(7px,1vw,9px);color:var(--muted);margin-top:1px;}
+.stars{color:var(--amber);font-size:clamp(9px,1.3vw,11px);}
+.avail{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:var(--fs-xs);font-weight:700;margin-top:6px;}
+
+/* ══════════════════════════════════
+   SCENE 5 — LINE CHART (animated entry)
+══════════════════════════════════ */
+.chart-scene{width:clamp(300px,90vw,980px);position:relative;z-index:2;}
+.chart-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:clamp(10px,2vh,16px);flex-wrap:wrap;gap:10px;}
+.chart-mini-stats{display:flex;gap:clamp(10px,2vw,16px);direction:ltr;}
+.mini-stat-v{font-family:'JetBrains Mono',monospace;font-size:clamp(18px,2.5vw,22px);font-weight:700;}
+.mini-stat-l{font-size:var(--fs-xs);color:var(--muted);font-family:'Poppins',sans-serif;}
+.chart-card{background:#fff;border-radius:var(--r);padding:var(--pad);box-shadow:0 6px 26px rgba(0,0,0,.08);}
+.chart-h{height:clamp(140px,20vh,200px);}
+.sparkrow{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);margin-top:var(--gap);}
+@media(max-width:600px){.sparkrow{grid-template-columns:repeat(2,1fr);}}
+.spark{background:#f9fafb;border-radius:clamp(8px,1.2vw,12px);padding:clamp(8px,1.2vh,12px);border:1.5px solid #f1f5f9;}
+.spark-lbl{font-size:var(--fs-xs);color:var(--muted);margin-bottom:2px;}
+.spark-v{font-size:clamp(16px,2.2vw,20px);font-weight:700;font-family:'JetBrains Mono',monospace;}
+
+/* ══════════════════════════════════
+   SCENE 6 — AI + animated bars
+══════════════════════════════════ */
+.ai-scene{width:clamp(300px,90vw,980px);position:relative;z-index:2;}
+.ai-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);margin-bottom:var(--gap);}
+@media(max-width:650px){.ai-cards{grid-template-columns:repeat(2,1fr);}}
+.ai-c{border-radius:var(--r);padding:clamp(14px,2vh,18px) clamp(10px,1.5vw,14px);text-align:center;border:2px solid;transform:translateY(25px);opacity:0;transition:transform .5s ease,opacity .5s ease;}
+.ai-c.show{transform:translateY(0);opacity:1;}
+.ai-ico{font-size:clamp(22px,3.5vw,28px);margin-bottom:7px;}
+.ai-lbl{font-size:var(--fs-xs);color:var(--muted);margin-bottom:5px;}
+.ai-v{font-family:'JetBrains Mono',monospace;font-size:clamp(20px,3vw,26px);font-weight:700;margin-bottom:4px;}
+.ai-conf{font-size:var(--fs-xs);font-weight:700;}
+.conf-bar{height:4px;border-radius:3px;margin-top:7px;background:rgba(0,0,0,.07);overflow:hidden;}
+.conf-fill{height:100%;border-radius:3px;width:0%;transition:width 1.3s ease;}
+.risk-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(6px,1vh,9px) clamp(14px,2.5vw,22px);}
+@media(max-width:600px){.risk-grid{grid-template-columns:1fr;}}
+.risk-row{display:flex;align-items:center;gap:8px;}
+.risk-nm{font-size:var(--fs-xs);color:var(--muted);width:clamp(80px,12vw,110px);text-align:right;flex-shrink:0;}
+.risk-bar-wrap{flex:1;background:#f1f5f9;border-radius:5px;height:clamp(6px,1vh,9px);overflow:hidden;}
+.risk-bar-fill{height:100%;border-radius:5px;width:0%;transition:width 1.2s ease;}
+.risk-pct{font-size:var(--fs-xs);font-weight:700;width:28px;direction:ltr;flex-shrink:0;}
+
+/* ══════════════════════════════════
+   SCENE 7 — MEDICINES
+══════════════════════════════════ */
+.med-scene{width:clamp(300px,92vw,1020px);position:relative;z-index:2;}
+.med-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:var(--gap);}
+@media(max-width:900px){.med-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:580px){.med-grid{grid-template-columns:repeat(2,1fr);}}
+.med-c{background:#fff;border-radius:var(--r);padding:clamp(10px,1.5vh,14px) clamp(8px,1.2vw,12px);box-shadow:0 4px 14px rgba(0,0,0,.07);border-top:3px solid;transform:translateY(20px);opacity:0;transition:transform .45s ease,opacity .45s ease;}
+.med-c.show{transform:translateY(0);opacity:1;}
+.med-nm{font-size:var(--fs-xs);font-weight:700;color:var(--text);margin-bottom:2px;}
+.med-cat{font-size:clamp(7px,1vw,9px);color:var(--muted);margin-bottom:7px;}
+.med-qty{font-family:'JetBrains Mono',monospace;font-size:clamp(18px,2.5vw,22px);font-weight:700;line-height:1;}
+.med-unit{font-size:clamp(7px,1vw,9px);color:var(--muted);}
+.med-bar-wrap{background:#f1f5f9;border-radius:4px;height:5px;overflow:hidden;margin:6px 0;}
+.med-bar-fill{height:100%;border-radius:4px;width:0%;transition:width 1.1s ease;}
+.med-foot{display:flex;justify-content:space-between;font-size:clamp(7px,1vw,9px);color:var(--muted);}
+.med-alert{background:var(--red-l);border:1px solid rgba(239,68,68,.3);border-radius:5px;padding:2px 6px;font-size:clamp(7px,1vw,9px);color:var(--red);font-weight:700;margin-bottom:4px;}
+
+/* ══════════════════════════════════
+   SCENE 8 — APPOINTMENTS
+══════════════════════════════════ */
+.apt-scene{width:clamp(300px,88vw,900px);position:relative;z-index:2;}
+.apt-c{background:#fff;border-radius:var(--r);padding:clamp(12px,2vh,16px) clamp(14px,2vw,20px);box-shadow:0 4px 16px rgba(0,0,0,.07);border-right:4px solid;display:flex;align-items:center;gap:clamp(10px,2vw,16px);transform:translateX(30px);opacity:0;transition:transform .5s ease,opacity .5s ease;margin-bottom:var(--gap);}
+.apt-c.show{transform:translateX(0);opacity:1;}
+.apt-ico{font-size:clamp(24px,4vw,32px);flex-shrink:0;}
+.apt-info{flex:1;min-width:0;}
+.apt-title{font-size:var(--fs-sm);font-weight:700;color:var(--text);}
+.apt-sub{font-size:var(--fs-xs);color:var(--muted);margin-top:3px;}
+.apt-time{font-family:'JetBrains Mono',monospace;font-size:var(--fs-sm);font-weight:600;color:var(--rose);flex-shrink:0;}
+.apt-stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);}
+@media(max-width:580px){.apt-stat-row{grid-template-columns:repeat(2,1fr);}}
+
+/* ══════════════════════════════════
+   SCENE 9 — REVENUE (bar + donut animated)
+══════════════════════════════════ */
+.rev-scene{width:clamp(300px,90vw,960px);position:relative;z-index:2;}
+.rev-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);margin-bottom:var(--gap);}
+@media(max-width:650px){.rev-kpis{grid-template-columns:repeat(2,1fr);}}
+.rev-kpi{border-radius:var(--r);padding:clamp(12px,1.8vh,16px);border:1.5px solid rgba(0,0,0,.05);}
+.rev-kpi-v{font-family:'JetBrains Mono',monospace;font-size:clamp(18px,2.5vw,22px);font-weight:700;line-height:1;}
+.rev-kpi-l{font-size:var(--fs-xs);color:var(--muted);margin-top:3px;}
+.rev-kpi-c{font-size:clamp(8px,1.1vw,10px);font-weight:700;margin-top:5px;}
+.rev-charts{display:grid;grid-template-columns:3fr 2fr;gap:var(--gap);}
+@media(max-width:650px){.rev-charts{grid-template-columns:1fr;}}
+.chart-h2{height:clamp(120px,18vh,165px);}
+.chart-h3{height:clamp(120px,18vh,145px);}
+
+/* ══════════════════════════════════
+   SCENE 10 — TECH STACK
+══════════════════════════════════ */
+.tech-scene{width:clamp(300px,90vw,980px);position:relative;z-index:2;}
+.tech-main-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap);margin-bottom:var(--gap);}
+@media(max-width:650px){.tech-main-grid{grid-template-columns:repeat(2,1fr);}}
+.tech-card{background:#fff;border-radius:var(--r);padding:clamp(14px,2vh,20px) clamp(12px,1.8vw,16px);text-align:center;box-shadow:0 6px 22px rgba(0,0,0,.07);border:1.5px solid rgba(0,0,0,.05);transform:translateY(25px);opacity:0;transition:transform .5s ease,opacity .5s ease;position:relative;overflow:hidden;}
+.tech-card.show{transform:translateY(0);opacity:1;}
+.tech-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--tc);}
+.tech-ico{font-size:clamp(28px,4.5vw,36px);margin-bottom:9px;}
+.tech-name{font-size:var(--fs-md);font-weight:700;font-family:'Poppins',sans-serif;margin-bottom:4px;}
+.tech-desc{font-size:var(--fs-xs);color:var(--muted);line-height:1.7;}
+.tech-pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:var(--fs-xs);font-weight:700;margin-top:8px;font-family:'Poppins',sans-serif;}
+.tech-feat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);}
+@media(max-width:650px){.tech-feat-grid{grid-template-columns:repeat(2,1fr);}}
+.tech-feat{background:#f9fafb;border-radius:clamp(8px,1vw,10px);padding:clamp(8px,1.2vh,11px);text-align:center;border:1px solid #f1f5f9;}
+.tech-feat-ico{font-size:clamp(16px,2.5vw,20px);margin-bottom:4px;}
+.tech-feat-lbl{font-size:var(--fs-xs);color:var(--muted);}
+.tech-feat-val{font-size:var(--fs-xs);font-weight:700;color:var(--text);}
+
+/* ══════════════════════════════════
+   SCENE 11 — HOSPITAL VALUE
+══════════════════════════════════ */
+.val-scene{width:clamp(300px,90vw,980px);position:relative;z-index:2;}
+.val-header-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);margin-bottom:var(--gap);}
+@media(max-width:650px){.val-header-cards{grid-template-columns:repeat(2,1fr);}}
+.val-hcard{border-radius:var(--r);padding:clamp(12px,1.8vh,16px) clamp(10px,1.5vw,12px);text-align:center;transform:scale(.9);opacity:0;transition:transform .45s ease,opacity .45s ease;}
+.val-hcard.show{transform:scale(1);opacity:1;}
+.val-hcard-ico{font-size:clamp(24px,3.5vw,30px);margin-bottom:7px;}
+.val-hcard-val{font-family:'JetBrains Mono',monospace;font-size:clamp(20px,2.8vw,24px);font-weight:700;line-height:1;}
+.val-hcard-lbl{font-size:var(--fs-xs);margin-top:4px;font-weight:600;}
+.val-benefits{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);}
+@media(max-width:600px){.val-benefits{grid-template-columns:1fr;}}
+.val-section-title{font-size:var(--fs-xs);font-weight:700;padding:7px 13px;border-radius:10px;margin-bottom:9px;text-align:center;}
+.val-item{background:#fff;border-radius:clamp(8px,1.2vw,12px);padding:clamp(9px,1.4vh,12px) clamp(11px,1.6vw,14px);border-right:3.5px solid;display:flex;gap:9px;align-items:flex-start;margin-bottom:7px;box-shadow:0 2px 8px rgba(0,0,0,.05);}
+.val-item-ico{font-size:clamp(15px,2.2vw,18px);flex-shrink:0;margin-top:1px;}
+.val-item-title{font-size:var(--fs-sm);font-weight:700;color:var(--text);}
+.val-item-desc{font-size:var(--fs-xs);color:var(--muted);margin-top:2px;line-height:1.6;}
+
+/* ══════════════════════════════════
+   SCENE 12 — ROLES
+══════════════════════════════════ */
+.sys-scene{width:clamp(300px,90vw,960px);position:relative;z-index:2;}
+.roles-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);margin-bottom:var(--gap);}
+@media(max-width:650px){.roles-grid{grid-template-columns:repeat(2,1fr);}}
+.role-c{background:#fff;border-radius:var(--r);padding:clamp(14px,2vh,18px) clamp(10px,1.5vw,12px);text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.07);border:1.5px solid rgba(0,0,0,.05);transform:scale(.9);opacity:0;transition:transform .45s ease,opacity .45s ease;}
+.role-c.show{transform:scale(1);opacity:1;}
+.role-ic{font-size:clamp(26px,4vw,34px);margin-bottom:8px;}
+.role-nm{font-size:var(--fs-sm);font-weight:700;color:var(--text);}
+.role-user{font-family:'JetBrains Mono',monospace;font-size:var(--fs-xs);color:var(--muted);margin-top:2px;}
+.perm-tag{display:inline-block;background:#f3f0ff;color:var(--violet);border:1px solid rgba(139,92,246,.3);border-radius:6px;padding:2px 7px;font-size:clamp(7px,1vw,9px);font-weight:600;margin:2px;}
+.db-keys-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(6px,1vw,9px);}
+@media(max-width:600px){.db-keys-grid{grid-template-columns:repeat(2,1fr);}}
+.db-key{border-radius:10px;padding:clamp(8px,1.2vh,11px);text-align:center;border:1px solid rgba(0,0,0,.07);}
+
+/* ══════════════════════════════════
+   OUTRO SCENE
+══════════════════════════════════ */
+#s13{background:radial-gradient(ellipse at 50% 50%,#1a0a2e 0%,#0b0814 70%);}
+.s13-c{text-align:center;position:relative;z-index:2;padding:var(--pad);}
+.s13-crown{font-size:clamp(38px,6vw,52px);animation:bnc 2s ease-in-out infinite;display:block;margin-bottom:12px;}
+@keyframes bnc{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+.s13-thanks{font-size:clamp(36px,5.5vw,56px);font-weight:900;color:#fff;margin-bottom:5px;}
+.s13-thanks span{background:linear-gradient(135deg,var(--rose),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.s13-en{font-family:'Poppins',sans-serif;font-size:clamp(14px,2vw,18px);letter-spacing:4px;color:rgba(255,255,255,.3);text-transform:uppercase;margin-bottom:18px;}
+.s13-div{width:70px;height:3px;background:linear-gradient(90deg,var(--rose),var(--violet));border-radius:2px;margin:0 auto 18px;}
+.s13-name{font-size:clamp(20px,3vw,28px);font-weight:900;color:#fff;}
+.s13-role{font-family:'Poppins',sans-serif;font-size:var(--fs-xs);color:rgba(255,255,255,.35);letter-spacing:2px;margin:3px 0 12px;}
+.s13-email{color:var(--rose);font-size:var(--fs-sm);font-weight:600;direction:ltr;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:14px;}
+.s13-tags{display:flex;gap:7px;justify-content:center;direction:ltr;flex-wrap:wrap;margin-bottom:14px;}
+.s13-tag{padding:4px 12px;border-radius:20px;font-size:var(--fs-xs);font-weight:600;background:rgba(232,98,154,.12);color:var(--rose);border:1px solid rgba(232,98,154,.25);font-family:'Poppins',sans-serif;}
+.s13-quote{max-width:clamp(260px,48vw,460px);margin:0 auto;font-size:var(--fs-sm);color:rgba(255,255,255,.32);font-style:italic;line-height:2;}
+.s13-ver{font-family:'Poppins',sans-serif;font-size:var(--fs-xs);color:rgba(255,255,255,.16);letter-spacing:2px;direction:ltr;margin-top:12px;}
+</style>
+</head>
+<body>
+<div id="pbar"><div id="pfill"></div></div>
+<div id="video">
+
+<!-- ══ S0 INTRO ══ -->
+<div class="scene active" id="s0">
+  <div class="s0-par" id="par0"></div>
+  <div class="ring" style="width:260px;height:260px;top:50%;left:50%;transform-origin:0 0;"></div>
+  <div class="ring" style="width:480px;height:480px;top:50%;left:50%;transform-origin:0 0;animation-delay:1.4s"></div>
+  <div class="ring" style="width:700px;height:700px;top:50%;left:50%;transform-origin:0 0;animation-delay:2.8s"></div>
+  <div class="s0-c">
+    <div class="s0-logo">🏥</div>
+    <div class="s0-title">نظام إدارة<br><span>المستشفى الذكي</span></div>
+    <div class="s0-sub">Smart Hospital BI System · v3.2</div>
+    <div class="s0-tags">
+      <span class="s0-tag a">🐍 Python</span>
+      <span class="s0-tag b">🚀 Streamlit</span>
+      <span class="s0-tag c">📊 Plotly</span>
+      <span class="s0-tag d">🤖 AI/ML</span>
+      <span class="s0-tag e">💾 JSON + SHA-256</span>
+    </div>
+    <div class="s0-author">
+      <span class="s0-crown">👑</span>
+      <div><div class="s0-name">Mouna Guirat</div><div class="s0-role">Business Intelligence Developer · 2025–2026</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ S1 KPIs ══ -->
+<div class="scene scene-light" id="s1">
+  <div class="s-header">
+    <div class="scene-num">📊 01 — مؤشرات الأداء الرئيسية</div>
+    <div class="scene-h">إحصائيات <span>المستشفى</span></div>
+    <div class="scene-p">البيانات من قاعدة بيانات النظام — hospital_db.json</div>
+  </div>
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-c" style="--kc:var(--rose)"><div class="kpi-ic">🏥</div><div class="kpi-v" id="k1">0</div><div class="kpi-l">إجمالي المرضى</div><div class="kpi-b up">▲ +3 هذا الأسبوع</div></div>
+    <div class="kpi-c" style="--kc:var(--violet)"><div class="kpi-ic">👨‍⚕️</div><div class="kpi-v" id="k2">0</div><div class="kpi-l">الكادر الطبي</div><div class="kpi-b bls">4 متاحون الآن</div></div>
+    <div class="kpi-c" style="--kc:var(--mint)"><div class="kpi-ic">🛏️</div><div class="kpi-v">500</div><div class="kpi-l">إجمالي الأسرة</div><div class="kpi-b nt">378 مشغول · 122 متاح</div></div>
+    <div class="kpi-c" style="--kc:var(--peach)"><div class="kpi-ic">📅</div><div class="kpi-v" id="k3">0</div><div class="kpi-l">مواعيد مسجلة</div><div class="kpi-b up">3 مؤكدة</div></div>
+    <div class="kpi-c" style="--kc:var(--sky)"><div class="kpi-ic">💊</div><div class="kpi-v" id="k4">0</div><div class="kpi-l">أصناف الأدوية</div><div class="kpi-b dn">⚠️ 3 تحت الحد الأدنى</div></div>
+    <div class="kpi-c" style="--kc:var(--red)"><div class="kpi-ic">🚨</div><div class="kpi-v">2</div><div class="kpi-l">حالات حرجة ICU</div><div class="kpi-b dn">متابعة فورية</div></div>
+    <div class="kpi-c" style="--kc:var(--teal)"><div class="kpi-ic">🔔</div><div class="kpi-v" id="k5">0</div><div class="kpi-l">إشعارات النظام</div><div class="kpi-b nt">1 تحذير عاجل</div></div>
+    <div class="kpi-c" style="--kc:var(--lav)"><div class="kpi-ic">👥</div><div class="kpi-v">4</div><div class="kpi-l">أدوار المستخدمين</div><div class="kpi-b bls">SHA-256 مشفّر</div></div>
+  </div>
+</div>
+
+<!-- ══ S2 BEDS + DOUGHNUT CHARTS ══ -->
+<div class="scene scene-light" id="s2">
+  <div class="s-header">
+    <div class="scene-num">🛏️ 02 — حالة الأسرة بالرسوم الدائرية</div>
+    <div class="scene-h">إشغال <span>500 سرير</span> — 6 أقسام</div>
+    <div class="scene-p">Doughnut Charts تفاعلية — الأداة الأقوى في إدارة المستشفيات</div>
+  </div>
+  <div class="beds-wrap">
+    <!-- Top: hero stat + overall donut -->
+    <div class="beds-top-row fi fi1">
+      <div class="beds-hero">
+        <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:600;margin-bottom:5px">إشغال إجمالي</div>
+        <div class="beds-pct-big">75.6%</div>
+        <div style="font-size:var(--fs-xs);color:var(--muted);margin-top:4px">378 من 500 سرير مشغول</div>
+        <div class="beds-bar-wrap"><div class="beds-bar-fill" id="mainBedBar"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);margin-top:4px">
+          <span style="color:var(--mint);font-weight:700">🟢 متاح: 122</span>
+          <span style="color:var(--red);font-weight:700">🔴 مشغول: 378</span>
+        </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9">
+          <div style="font-size:var(--fs-xs);color:var(--muted);margin-bottom:4px">الحد الحرج: 85%</div>
+          <div style="font-size:var(--fs-sm);font-weight:700;color:var(--mint)">✅ ضمن النطاق الآمن</div>
+        </div>
+      </div>
+      <!-- Overall donut -->
+      <div class="card fi fi2" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
+        <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;text-align:center">التوزيع الكلي للأسرة</div>
+        <div style="display:flex;align-items:center;gap:clamp(10px,3vw,24px);">
+          <div style="width:clamp(100px,15vw,150px);height:clamp(100px,15vw,150px);position:relative;flex-shrink:0">
+            <canvas id="overallDonut"></canvas>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:clamp(16px,2.5vw,22px);font-weight:700;color:var(--rose)">75.6%</span>
+              <span style="font-size:var(--fs-xs);color:var(--muted)">إشغال</span>
+            </div>
+          </div>
+          <div>
+            <div class="dleg" style="margin-bottom:6px"><div class="dleg-dot" style="background:var(--red)"></div> عناية (ICU) — 80%</div>
+            <div class="dleg" style="margin-bottom:6px"><div class="dleg-dot" style="background:var(--peach)"></div> طوارئ — 80%</div>
+            <div class="dleg" style="margin-bottom:6px"><div class="dleg-dot" style="background:var(--violet)"></div> عمليات — 76%</div>
+            <div class="dleg" style="margin-bottom:6px"><div class="dleg-dot" style="background:var(--mint)"></div> نيكو — 73%</div>
+            <div class="dleg" style="margin-bottom:6px"><div class="dleg-dot" style="background:var(--sky)"></div> عزل — 60%</div>
+            <div class="dleg"><div class="dleg-dot" style="background:var(--teal)"></div> عادي — 75%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 6 department doughnut cards -->
+    <div class="beds-donut-grid" id="bedsDonutGrid">
+      <div class="donut-card" style="--dc:var(--red)">
+        <div class="donut-canvas-wrap"><canvas id="d_icu"></canvas><div class="donut-center-label"><span class="donut-pct" style="color:var(--red)">80%</span><span class="donut-used">مشغول</span></div></div>
+        <div class="donut-dept" style="color:var(--red)">⚡ عناية مركزة</div>
+        <div class="donut-sub">48 من 60 سرير</div>
+        <div class="donut-legend"><div class="dleg"><div class="dleg-dot" style="background:var(--red)"></div>مشغول</div><div class="dleg"><div class="dleg-dot" style="background:#f1f5f9"></div>متاح</div></div>
+      </div>
+      <div class="donut-card" style="--dc:var(--peach)">
+        <div class="donut-canvas-wrap"><canvas id="d_em"></canvas><div class="donut-center-label"><span class="donut-pct" style="color:var(--peach)">80%</span><span class="donut-used">مشغول</span></div></div>
+        <div class="donut-dept" style="color:var(--peach)">🚨 الطوارئ</div>
+        <div class="donut-sub">32 من 40 سرير</div>
+        <div class="donut-legend"><div class="dleg"><div class="dleg-dot" style="background:var(--peach)"></div>مشغول</div><div class="dleg"><div class="dleg-dot" style="background:#f1f5f9"></div>متاح</div></div>
+      </div>
+      <div class="donut-card" style="--dc:var(--violet)">
+        <div class="donut-canvas-wrap"><canvas id="d_sur"></canvas><div class="donut-center-label"><span class="donut-pct" style="color:var(--violet)">76%</span><span class="donut-used">مشغول</span></div></div>
+        <div class="donut-dept" style="color:var(--violet)">🔪 العمليات</div>
+        <div class="donut-sub">38 من 50 سرير</div>
+        <div class="donut-legend"><div class="dleg"><div class="dleg-dot" style="background:var(--violet)"></div>مشغول</div><div class="dleg"><div class="dleg-dot" style="background:#f1f5f9"></div>متاح</div></div>
+      </div>
+      <div class="donut-card" style="--dc:var(--mint)">
+        <div class="donut-canvas-wrap"><canvas id="d_nicu"></canvas><div class="donut-center-label"><span class="donut-pct" style="color:var(--mint)">73%</span><span class="donut-used">مشغول</span></div></div>
+        <div class="donut-dept" style="color:var(--mint)">👶 حديثي الولادة</div>
+        <div class="donut-sub">22 من 30 سرير</div>
+        <div class="donut-legend"><div class="dleg"><div class="dleg-dot" style="background:var(--mint)"></div>مشغول</div><div class="dleg"><div class="dleg-dot" style="background:#f1f5f9"></div>متاح</div></div>
+      </div>
+      <div class="donut-card" style="--dc:var(--sky)">
+        <div class="donut-canvas-wrap"><canvas id="d_iso"></canvas><div class="donut-center-label"><span class="donut-pct" style="color:var(--sky)">60%</span><span class="donut-used">مشغول</span></div></div>
+        <div class="donut-dept" style="color:var(--sky)">🔒 العزل</div>
+        <div class="donut-sub">15 من 25 سرير</div>
+        <div class="donut-legend"><div class="dleg"><div class="dleg-dot" style="background:var(--sky)"></div>مشغول</div><div class="dleg"><div class="dleg-dot" style="background:#f1f5f9"></div>متاح</div></div>
+      </div>
+      <div class="donut-card" style="--dc:var(--teal)">
+        <div class="donut-canvas-wrap"><canvas id="d_gen"></canvas><div class="donut-center-label"><span class="donut-pct" style="color:var(--teal)">75%</span><span class="donut-used">مشغول</span></div></div>
+        <div class="donut-dept" style="color:var(--teal)">🏠 الأجنحة العادية</div>
+        <div class="donut-sub">223 من 295 سرير</div>
+        <div class="donut-legend"><div class="dleg"><div class="dleg-dot" style="background:var(--teal)"></div>مشغول</div><div class="dleg"><div class="dleg-dot" style="background:#f1f5f9"></div>متاح</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ S3 PATIENTS ══ -->
+<div class="scene scene-light" id="s3">
+  <div class="s-header">
+    <div class="scene-num">🏥 03 — ملفات المرضى</div>
+    <div class="scene-h">5 مرضى في <span>قاعدة البيانات</span></div>
+    <div class="scene-p">سجل طبي كامل لكل مريض — بيانات حقيقية من hospital_db.json</div>
+  </div>
+
+  <div style="width:clamp(300px,88vw,860px);position:relative;z-index:2;">
+
+    <!-- Patient Cards — replaces wide table -->
+    <div style="display:flex;flex-direction:column;gap:var(--gap);margin-bottom:var(--gap);">
+
+      <div class="fi fi1" style="background:#fff;border-radius:var(--r);border:1.5px solid rgba(0,0,0,.05);box-shadow:0 3px 14px rgba(0,0,0,.07);overflow:hidden;">
+        <!-- Header row -->
+        <div style="display:grid;grid-template-columns:44px 1fr 80px 90px 90px;background:linear-gradient(135deg,var(--rose),var(--violet));padding:clamp(7px,1.2vh,10px) clamp(10px,1.5vw,14px);gap:10px;align-items:center;">
+          <div style="font-size:var(--fs-xs);color:rgba(255,255,255,.8);font-weight:700;">#</div>
+          <div style="font-size:var(--fs-xs);color:rgba(255,255,255,.8);font-weight:700;">المريض · التشخيص</div>
+          <div style="font-size:var(--fs-xs);color:rgba(255,255,255,.8);font-weight:700;text-align:center">القسم</div>
+          <div style="font-size:var(--fs-xs);color:rgba(255,255,255,.8);font-weight:700;text-align:center">الطبيب</div>
+          <div style="font-size:var(--fs-xs);color:rgba(255,255,255,.8);font-weight:700;text-align:center">الحالة</div>
+        </div>
+        <!-- Patient rows -->
+        <div id="patRows">
+          <div class="pat-row" style="display:grid;grid-template-columns:44px 1fr 80px 90px 90px;padding:clamp(9px,1.4vh,13px) clamp(10px,1.5vw,14px);gap:10px;align-items:center;border-bottom:1px solid #f1f5f9;opacity:0;transform:translateX(20px);transition:opacity .4s ease,transform .4s ease;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:var(--fs-xs);color:var(--muted)">#101</div>
+            <div><div style="font-size:var(--fs-sm);font-weight:700;color:var(--text)">محمد عبدالله</div><div style="font-size:var(--fs-xs);color:var(--muted);margin-top:1px">🫀 أزمة قلبية · 45 سنة · 302-A</div></div>
+            <div style="text-align:center"><span class="pill pb">عادي</span></div>
+            <div style="font-size:var(--fs-xs);color:var(--muted);text-align:center">أحمد محمد</div>
+            <div style="text-align:center"><span class="pill pg">مستقر</span></div>
+          </div>
+          <div class="pat-row" style="display:grid;grid-template-columns:44px 1fr 80px 90px 90px;padding:clamp(9px,1.4vh,13px) clamp(10px,1.5vw,14px);gap:10px;align-items:center;border-bottom:1px solid #f1f5f9;background:#fff9fb;opacity:0;transform:translateX(20px);transition:opacity .4s ease,transform .4s ease;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:var(--fs-xs);color:var(--muted)">#102</div>
+            <div><div style="font-size:var(--fs-sm);font-weight:700;color:var(--text)">فاطمة الزهراء</div><div style="font-size:var(--fs-xs);color:var(--muted);margin-top:1px">🫁 التهاب رئوي · 32 سنة · ICU-101</div></div>
+            <div style="text-align:center"><span class="pill pr">عناية</span></div>
+            <div style="font-size:var(--fs-xs);color:var(--muted);text-align:center">سارة علي</div>
+            <div style="text-align:center"><span class="pill pr">حرج</span></div>
+          </div>
+          <div class="pat-row" style="display:grid;grid-template-columns:44px 1fr 80px 90px 90px;padding:clamp(9px,1.4vh,13px) clamp(10px,1.5vw,14px);gap:10px;align-items:center;border-bottom:1px solid #f1f5f9;opacity:0;transform:translateX(20px);transition:opacity .4s ease,transform .4s ease;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:var(--fs-xs);color:var(--muted)">#103</div>
+            <div><div style="font-size:var(--fs-sm);font-weight:700;color:var(--text)">عمر حسن</div><div style="font-size:var(--fs-xs);color:var(--muted);margin-top:1px">🦴 كسر في الساق · 28 سنة · 215-B</div></div>
+            <div style="text-align:center"><span class="pill pb">عادي</span></div>
+            <div style="font-size:var(--fs-xs);color:var(--muted);text-align:center">خالد عمر</div>
+            <div style="text-align:center"><span class="pill pb">يتحسن</span></div>
+          </div>
+          <div class="pat-row" style="display:grid;grid-template-columns:44px 1fr 80px 90px 90px;padding:clamp(9px,1.4vh,13px) clamp(10px,1.5vw,14px);gap:10px;align-items:center;border-bottom:1px solid #f1f5f9;background:#fff9fb;opacity:0;transform:translateX(20px);transition:opacity .4s ease,transform .4s ease;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:var(--fs-xs);color:var(--muted)">#104</div>
+            <div><div style="font-size:var(--fs-sm);font-weight:700;color:var(--text)">أحمد علي</div><div style="font-size:var(--fs-xs);color:var(--muted);margin-top:1px">🧠 سكتة دماغية · 55 سنة · ICU-102</div></div>
+            <div style="text-align:center"><span class="pill pr">عناية</span></div>
+            <div style="font-size:var(--fs-xs);color:var(--muted);text-align:center">فاطمة أحمد</div>
+            <div style="text-align:center"><span class="pill pr">حرج</span></div>
+          </div>
+          <div class="pat-row" style="display:grid;grid-template-columns:44px 1fr 80px 90px 90px;padding:clamp(9px,1.4vh,13px) clamp(10px,1.5vw,14px);gap:10px;align-items:center;opacity:0;transform:translateX(20px);transition:opacity .4s ease,transform .4s ease;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:var(--fs-xs);color:var(--muted)">#105</div>
+            <div><div style="font-size:var(--fs-sm);font-weight:700;color:var(--text)">نورة خالد</div><div style="font-size:var(--fs-xs);color:var(--muted);margin-top:1px">🌡️ حمى شديدة · 35 سنة · 405-C</div></div>
+            <div style="text-align:center"><span class="pill po">طوارئ</span></div>
+            <div style="font-size:var(--fs-xs);color:var(--muted);text-align:center">محمود حسن</div>
+            <div style="text-align:center"><span class="pill po">ملاحظة</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Stat cards below -->
+    <div class="pat-stat-row fi fi3">
+      <div class="pat-stat-card"><div style="font-size:clamp(20px,3vw,24px);margin-bottom:3px">⌀</div><div style="font-family:'JetBrains Mono',monospace;font-size:clamp(18px,2.5vw,22px);font-weight:700;color:var(--rose)">39</div><div style="font-size:var(--fs-xs);color:var(--muted)">متوسط العمر</div></div>
+      <div class="pat-stat-card"><div style="font-size:clamp(20px,3vw,24px);margin-bottom:3px">🚨</div><div style="font-family:'JetBrains Mono',monospace;font-size:clamp(18px,2.5vw,22px);font-weight:700;color:var(--red)">2</div><div style="font-size:var(--fs-xs);color:var(--muted)">حالات حرجة ICU</div></div>
+      <div class="pat-stat-card"><div style="font-size:clamp(20px,3vw,24px);margin-bottom:3px">✅</div><div style="font-family:'JetBrains Mono',monospace;font-size:clamp(18px,2.5vw,22px);font-weight:700;color:var(--mint)">2</div><div style="font-size:var(--fs-xs);color:var(--muted)">مستقر + يتحسن</div></div>
+      <div class="pat-stat-card"><div style="font-size:clamp(20px,3vw,24px);margin-bottom:3px">📋</div><div style="font-family:'JetBrains Mono',monospace;font-size:clamp(18px,2.5vw,22px);font-weight:700;color:var(--violet)">5+</div><div style="font-size:var(--fs-xs);color:var(--muted)">سجلات طبية</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ S4 DOCTORS ══ -->
+<div class="scene scene-light" id="s4">
+  <div class="s-header">
+    <div class="scene-num">👨‍⚕️ 04 — الكادر الطبي</div>
+    <div class="scene-h">6 أطباء — ملفات <span>كاملة</span></div>
+    <div class="scene-p">تقييمات · خبرة · تخصص · حالة التوفر</div>
+  </div>
+  <div class="doc-grid" id="docGrid">
+    <div class="doc-c"><div class="doc-av" style="background:var(--rose-l);border-color:var(--rose)">👨‍⚕️</div><div class="doc-nm">د. أحمد محمد</div><div class="doc-sp">قلبية — استشاري</div><div class="stars">★★★★★</div><div class="doc-stats"><div class="doc-stat"><div class="doc-stat-v" style="color:var(--rose)">45</div><div class="doc-stat-l">مريض</div></div><div class="doc-stat"><div class="doc-stat-v" style="color:var(--violet)">4.9</div><div class="doc-stat-l">تقييم</div></div><div class="doc-stat"><div class="doc-stat-v" style="color:var(--mint)">15س</div><div class="doc-stat-l">خبرة</div></div></div><div class="avail" style="background:var(--mint-l);color:var(--teal)">🟢 متاح</div></div>
+    <div class="doc-c"><div class="doc-av" style="background:var(--violet-l);border-color:var(--violet)">👩‍⚕️</div><div class="doc-nm">د. سارة علي</div><div class="doc-sp">أطفال — أخصائي</div><div class="stars">★★★★★</div><div class="doc-stats"><div class="doc-stat"><div class="doc-stat-v" style="color:var(--violet)">38</div><div class="doc-stat-l">مريض</div></div><div class="doc-stat"><div class="doc-stat-v" style="color:var(--rose)">4.8</div><div class="doc-stat-l">تقييم</div></div><div class="doc-stat"><div class="doc-stat-v" style="color:var(--mint)">10س</div><div class="doc-stat-l">خبرة</div></div></div><div class="avail" style="background:var(--red-l);color:var(--red)">🔴 مشغول</div></div>
+    <div class="doc-c"><div class="doc-av" style="background:var(--teal-l);border-color:var(--teal)">👨‍⚕️</div><div class="doc-nm">د. خالد عمر</div><div class="doc-sp">جراحة — استشاري</div><div class="stars">★★★★☆</div><div class="doc-stats"><div class="doc-stat"><div class="doc-stat-v" style="color:var(--teal)">52</div><div class="doc-stat-l">مريض</div></div><div class="doc-stat"><div class="doc-stat-v" style="color:var(--rose)">4.7</div><div class="doc-stat-l">تقييم</div></div><div class="doc-stat"><div class="doc-stat-v" style="color:var(--mint)">20س</div><div class="doc-stat-l">خبرة</div></div></div><div class="avail" style="background:var(--mint-l);color:var(--teal)">🟢 متاح</div></div>
+    <div class="doc-c"><div class="doc-av" style="background:var(--sky-l);border-color:var(--sky)">👩‍⚕️</div><div class="doc-nm">د. فاطمة أحمد</div><div class="doc-sp">باطنة — أخصائي</div><div class="stars">★★★★★</div><div class="doc-stats"><div class="doc-stat"><div class="doc-stat-v" style="color:var(--sky)">41</div><div class="doc-stat-l">مريض</div></div><div class="doc-stat"><div class="doc-stat-v" style="color:var(--rose)">4.9</div><div class="doc-stat-l">تقييم</div></div><div class="doc-stat"><div class="doc-stat-v" style="color:var(--mint)">12س</div><div class="doc-stat-l">خبرة</div></div></div><div class="avail" style="background:var(--amber-l);color:var(--amber)">⏸️ إجازة</div></div>
+    <div class="doc-c"><div class="doc-av" style="background:var(--peach-l);border-color:var(--peach)">👨‍⚕️</div><div class="doc-nm">د. محمود حسن</div><div class="doc-sp">عظام — استشاري</div><div class="stars">★★★★☆</div><div class="doc-stats"><div class="doc-stat"><div class="doc-stat-v" style="color:var(--peach)">33</div><div class="doc-stat-l">مريض</div></div><div class="doc-stat"><div class="doc-stat-v" style="color:var(--rose)">4.6</div><div class="doc-stat-l">تقييم</div></div><div class="doc-stat"><div class="doc-stat-v" style="color:var(--mint)">18س</div><div class="doc-stat-l">خبرة</div></div></div><div class="avail" style="background:var(--mint-l);color:var(--teal)">🟢 متاح</div></div>
+    <div class="doc-c"><div class="doc-av" style="background:var(--rose-m);border-color:var(--rose2)">👩‍⚕️</div><div class="doc-nm">د. نورة سعد</div><div class="doc-sp">نساء — استشاري</div><div class="stars">★★★★★</div><div class="doc-stats"><div class="doc-stat"><div class="doc-stat-v" style="color:var(--rose)">47</div><div class="doc-stat-l">مريض</div></div><div class="doc-stat"><div class="doc-stat-v" style="color:var(--amber)">5.0</div><div class="doc-stat-l">تقييم</div></div><div class="doc-stat"><div class="doc-stat-v" style="color:var(--mint)">16س</div><div class="doc-stat-l">خبرة</div></div></div><div class="avail" style="background:var(--red-l);color:var(--red)">🔴 مشغول</div></div>
+  </div>
+</div>
+
+<!-- ══ S5 LINE CHART (animated on enter) ══ -->
+<div class="scene scene-light" id="s5">
+  <div class="chart-scene">
+    <div class="chart-header">
+      <div>
+        <div class="scene-num">📈 05 — تحليل البيانات</div>
+        <div class="scene-h" style="font-size:var(--fs-xl)">اتجاه المرضى — <span>14 يوم</span></div>
+      </div>
+      <div class="chart-mini-stats">
+        <div><div class="mini-stat-v" style="color:var(--rose)" id="sAvg">-</div><div class="mini-stat-l">متوسط أسبوعي</div></div>
+        <div><div class="mini-stat-v" style="color:var(--violet)">91%</div><div class="mini-stat-l">دقة AI</div></div>
+        <div><div class="mini-stat-v" style="color:var(--mint)">+8%</div><div class="mini-stat-l">نمو شهري</div></div>
+      </div>
+    </div>
+    <div class="chart-card fi fi1">
+      <div class="chart-h"><canvas id="lineChart"></canvas></div>
+      <div class="sparkrow" style="margin-top:var(--gap)">
+        <div class="spark"><div class="spark-lbl">إجمالي المرضى</div><div class="spark-v" style="color:var(--rose)">5</div></div>
+        <div class="spark"><div class="spark-lbl">أطباء في الخدمة</div><div class="spark-v" style="color:var(--violet)">4 / 6</div></div>
+        <div class="spark"><div class="spark-lbl">الأسرة المتاحة</div><div class="spark-v" style="color:var(--mint)">122</div></div>
+        <div class="spark"><div class="spark-lbl">إشغال ICU</div><div class="spark-v" style="color:var(--red)">80%</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ S6 AI ══ -->
+<div class="scene scene-light" id="s6">
+  <div class="s-header">
+    <div class="scene-num">🤖 06 — الذكاء الاصطناعي</div>
+    <div class="scene-h">تنبؤات <span>الغد</span></div>
+    <div class="scene-p">أشرطة الثقة تتحرك تلقائياً عند الدخول للمشهد</div>
+  </div>
+  <div class="ai-scene">
+    <div class="ai-cards" id="aiCards">
+      <div class="ai-c" style="background:var(--rose-l);border-color:rgba(232,98,154,.3)"><div class="ai-ico">👥</div><div class="ai-lbl">مرضى الغد</div><div class="ai-v" style="color:var(--rose)">+6</div><div class="ai-conf" style="color:var(--rose)">ثقة 87%</div><div class="conf-bar"><div class="conf-fill" style="background:var(--rose)" data-w="87%"></div></div></div>
+      <div class="ai-c" style="background:var(--violet-l);border-color:rgba(139,92,246,.3)"><div class="ai-ico">🛏️</div><div class="ai-lbl">إشغال الغد</div><div class="ai-v" style="color:var(--violet)">78%</div><div class="ai-conf" style="color:var(--violet)">ثقة 91%</div><div class="conf-bar"><div class="conf-fill" style="background:var(--violet)" data-w="91%"></div></div></div>
+      <div class="ai-c" style="background:var(--peach-l);border-color:rgba(249,115,22,.3)"><div class="ai-ico">🚨</div><div class="ai-lbl">طوارئ الغد</div><div class="ai-v" style="color:var(--peach)">24</div><div class="ai-conf" style="color:var(--peach)">ثقة 80%</div><div class="conf-bar"><div class="conf-fill" style="background:var(--peach)" data-w="80%"></div></div></div>
+      <div class="ai-c" style="background:var(--mint-l);border-color:rgba(16,185,129,.3)"><div class="ai-ico">💰</div><div class="ai-lbl">إيرادات الغد</div><div class="ai-v" style="color:var(--mint)">65K</div><div class="ai-conf" style="color:var(--mint)">ثقة 77%</div><div class="conf-bar"><div class="conf-fill" style="background:var(--mint)" data-w="77%"></div></div></div>
+    </div>
+    <div class="card" style="padding:var(--pad)">
+      <div style="font-size:var(--fs-sm);font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:6px"><span style="width:4px;height:14px;background:linear-gradient(var(--red),var(--peach));border-radius:2px;display:inline-block"></span>مصفوفة المخاطر — تنشيط الأشرطة عند دخول المشهد</div>
+      <div class="risk-grid" id="riskGrid">
+        <div class="risk-row"><div class="risk-nm">ضغط ICU (80%)</div><div class="risk-bar-wrap"><div class="risk-bar-fill" style="background:var(--red)" data-w="80%"></div></div><div class="risk-pct" style="color:var(--red)">80%</div></div>
+        <div class="risk-row"><div class="risk-nm">امتلاء الطوارئ</div><div class="risk-bar-wrap"><div class="risk-bar-fill" style="background:var(--peach)" data-w="80%"></div></div><div class="risk-pct" style="color:var(--peach)">80%</div></div>
+        <div class="risk-row"><div class="risk-nm">نقص الكادر</div><div class="risk-bar-wrap"><div class="risk-bar-fill" style="background:var(--amber)" data-w="42%"></div></div><div class="risk-pct" style="color:var(--amber)">42%</div></div>
+        <div class="risk-row"><div class="risk-nm">نقص الأدوية</div><div class="risk-bar-wrap"><div class="risk-bar-fill" style="background:var(--violet)" data-w="30%"></div></div><div class="risk-pct" style="color:var(--violet)">30%</div></div>
+        <div class="risk-row"><div class="risk-nm">أمراض التنفس</div><div class="risk-bar-wrap"><div class="risk-bar-fill" style="background:var(--sky)" data-w="58%"></div></div><div class="risk-pct" style="color:var(--sky)">58%</div></div>
+        <div class="risk-row"><div class="risk-nm">إعادة إدخال</div><div class="risk-bar-wrap"><div class="risk-bar-fill" style="background:var(--mint)" data-w="15%"></div></div><div class="risk-pct" style="color:var(--mint)">15%</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ S7 MEDICINES ══ -->
+<div class="scene scene-light" id="s7">
+  <div class="s-header">
+    <div class="scene-num">💊 07 — خزينة الأدوية</div>
+    <div class="scene-h">10 أصناف — <span>3 ناقصة</span></div>
+    <div class="scene-p">أشرطة المخزون تتحرك عند دخول المشهد</div>
+  </div>
+  <div class="med-scene">
+    <div class="med-grid" id="medGrid">
+      <div class="med-c" style="border-color:var(--mint)"><div class="med-nm">أموكسيسيلين</div><div class="med-cat">مضادات حيوية</div><div class="med-qty" style="color:var(--mint)">120</div><div class="med-unit">علبة · min 30</div><div class="med-bar-wrap"><div class="med-bar-fill" style="background:var(--mint)" data-w="100%"></div></div><div class="med-foot"><span>8.5 د</span><span style="color:var(--teal)">✓</span></div></div>
+      <div class="med-c" style="border-color:var(--mint)"><div class="med-nm">باراسيتامول 500mg</div><div class="med-cat">مسكنات</div><div class="med-qty" style="color:var(--mint)">250</div><div class="med-unit">علبة · min 50</div><div class="med-bar-wrap"><div class="med-bar-fill" style="background:var(--mint)" data-w="100%"></div></div><div class="med-foot"><span>3.2 د</span><span style="color:var(--teal)">✓</span></div></div>
+      <div class="med-c" style="border-color:var(--red)"><div class="med-alert">⚠️ منخفض</div><div class="med-nm" style="color:var(--red)">أوميبرازول 20mg</div><div class="med-cat">معدة وهضم</div><div class="med-qty" style="color:var(--red)">18</div><div class="med-unit">علبة · min 25</div><div class="med-bar-wrap"><div class="med-bar-fill" style="background:var(--red)" data-w="72%"></div></div><div class="med-foot"><span>12.0 د</span><span style="color:var(--red)">09/25</span></div></div>
+      <div class="med-c" style="border-color:var(--violet)"><div class="med-nm">ميتفورمين 500mg</div><div class="med-cat">سكري</div><div class="med-qty" style="color:var(--violet)">80</div><div class="med-unit">علبة · min 20</div><div class="med-bar-wrap"><div class="med-bar-fill" style="background:var(--violet)" data-w="100%"></div></div><div class="med-foot"><span>9.5 د</span><span style="color:var(--teal)">✓</span></div></div>
+      <div class="med-c" style="border-color:var(--sky)"><div class="med-nm">أملوديبين 5mg</div><div class="med-cat">ضغط الدم</div><div class="med-qty" style="color:var(--sky)">60</div><div class="med-unit">علبة · min 20</div><div class="med-bar-wrap"><div class="med-bar-fill" style="background:var(--sky)" data-w="100%"></div></div><div class="med-foot"><span>14.0 د</span><span style="color:var(--teal)">✓</span></div></div>
+      <div class="med-c" style="border-color:var(--peach)"><div class="med-nm">سيتريزين 10mg</div><div class="med-cat">حساسية</div><div class="med-qty" style="color:var(--peach)">40</div><div class="med-unit">علبة · min 20</div><div class="med-bar-wrap"><div class="med-bar-fill" style="background:var(--peach)" data-w="100%"></div></div><div class="med-foot"><span>6.5 د</span><span style="color:var(--teal)">✓</span></div></div>
+      <div class="med-c" style="border-color:var(--red)"><div class="med-alert">⚠️ ناقص تبريد!</div><div class="med-nm" style="color:var(--red)">إنسولين Glargine</div><div class="med-cat">سكري</div><div class="med-qty" style="color:var(--red)">12</div><div class="med-unit">قلم · min 15</div><div class="med-bar-wrap"><div class="med-bar-fill" style="background:var(--red)" data-w="80%"></div></div><div class="med-foot"><span>55 د</span><span style="color:var(--red)">عاجل</span></div></div>
+      <div class="med-c" style="border-color:var(--mint)"><div class="med-nm">سالبوتامول</div><div class="med-cat">تنفس</div><div class="med-qty" style="color:var(--mint)">25</div><div class="med-unit">بخاخ · min 10</div><div class="med-bar-wrap"><div class="med-bar-fill" style="background:var(--mint)" data-w="100%"></div></div><div class="med-foot"><span>18 د</span><span style="color:var(--teal)">✓</span></div></div>
+      <div class="med-c" style="border-color:var(--red)"><div class="med-alert">🚨 نفاد قريب!</div><div class="med-nm" style="color:var(--red)">ليفوتيروكسين 50mg</div><div class="med-cat">غدة درقية</div><div class="med-qty" style="color:var(--red)">5</div><div class="med-unit">علبة · min 20</div><div class="med-bar-wrap"><div class="med-bar-fill" style="background:var(--red)" data-w="25%"></div></div><div class="med-foot"><span>11.5 د</span><span style="color:var(--red)">08/25</span></div></div>
+      <div class="med-c" style="border-color:var(--amber)"><div class="med-nm">فيتامين D3</div><div class="med-cat">فيتامينات</div><div class="med-qty" style="color:var(--amber)">90</div><div class="med-unit">علبة · min 30</div><div class="med-bar-wrap"><div class="med-bar-fill" style="background:var(--amber)" data-w="100%"></div></div><div class="med-foot"><span>22 د</span><span style="color:var(--teal)">✓</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ S8 APPOINTMENTS ══ -->
+<div class="scene scene-light" id="s8">
+  <div class="s-header">
+    <div class="scene-num">📅 08 — المواعيد</div>
+    <div class="scene-h">3 مواعيد <span>مؤكدة</span></div>
+    <div class="scene-p">تنزلق من اليمين عند الدخول</div>
+  </div>
+  <div class="apt-scene">
+    <div id="aptCards">
+      <div class="apt-c" style="border-color:var(--rose)"><div class="apt-ico">🫀</div><div class="apt-info"><div class="apt-title">محمد عبدالله ← د. أحمد محمد</div><div class="apt-sub">قلبية — متابعة · 2024-10-25 · 302-A</div></div><div style="text-align:center;flex-shrink:0"><div class="apt-time">⏰ 10:00</div><span class="pill pg">مؤكد</span></div></div>
+      <div class="apt-c" style="border-color:var(--violet)"><div class="apt-ico">🫁</div><div class="apt-info"><div class="apt-title">فاطمة الزهراء ← د. سارة علي</div><div class="apt-sub">أطفال — كشف جديد · 2024-10-25 · ICU-101</div></div><div style="text-align:center;flex-shrink:0"><div class="apt-time">⏰ 11:30</div><span class="pill pg">مؤكد</span></div></div>
+      <div class="apt-c" style="border-color:var(--teal)"><div class="apt-ico">🦴</div><div class="apt-info"><div class="apt-title">عمر حسن ← د. خالد عمر</div><div class="apt-sub">جراحة — أشعة · 2024-10-26 · 215-B</div></div><div style="text-align:center;flex-shrink:0"><div class="apt-time">⏰ 09:00</div><span class="pill pg">مؤكد</span></div></div>
+    </div>
+    <div class="apt-stat-row">
+      <div class="pat-stat-card"><div style="font-size:clamp(20px,3vw,26px);margin-bottom:3px">📅</div><div style="font-family:'JetBrains Mono',monospace;font-size:clamp(18px,2.5vw,22px);font-weight:700;color:var(--rose)">3</div><div style="font-size:var(--fs-xs);color:var(--muted)">إجمالي المواعيد</div></div>
+      <div class="pat-stat-card"><div style="font-size:clamp(20px,3vw,26px);margin-bottom:3px">✅</div><div style="font-family:'JetBrains Mono',monospace;font-size:clamp(18px,2.5vw,22px);font-weight:700;color:var(--mint)">100%</div><div style="font-size:var(--fs-xs);color:var(--muted)">نسبة التأكيد</div></div>
+      <div class="pat-stat-card"><div style="font-size:clamp(20px,3vw,26px);margin-bottom:3px">🩺</div><div style="font-family:'JetBrains Mono',monospace;font-size:clamp(18px,2.5vw,22px);font-weight:700;color:var(--violet)">3</div><div style="font-size:var(--fs-xs);color:var(--muted)">أطباء مختلفين</div></div>
+      <div class="pat-stat-card"><div style="font-size:clamp(20px,3vw,26px);margin-bottom:3px">🗓️</div><div style="font-family:'JetBrains Mono',monospace;font-size:clamp(18px,2.5vw,22px);font-weight:700;color:var(--peach)">2</div><div style="font-size:var(--fs-xs);color:var(--muted)">يومين</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ S9 REVENUE ══ -->
+<div class="scene scene-light" id="s9">
+  <div class="rev-scene">
+    <div class="s-header" style="margin-bottom:var(--gap)">
+      <div class="scene-num">💰 09 — التحليل المالي</div>
+      <div class="scene-h">الإيرادات — <span>رسوم متحركة</span></div>
+    </div>
+    <div class="rev-kpis fi fi1">
+      <div class="rev-kpi" style="background:var(--rose-l);border-color:rgba(232,98,154,.2)"><div class="rev-kpi-v" style="color:var(--rose)">65K</div><div class="rev-kpi-l">إيرادات اليوم (د)</div><div class="rev-kpi-c" style="color:var(--mint)">▲ +12%</div></div>
+      <div class="rev-kpi" style="background:var(--violet-l);border-color:rgba(139,92,246,.2)"><div class="rev-kpi-v" style="color:var(--violet)">455K</div><div class="rev-kpi-l">إيرادات الأسبوع</div><div class="rev-kpi-c" style="color:var(--mint)">▲ +8%</div></div>
+      <div class="rev-kpi" style="background:var(--mint-l);border-color:rgba(16,185,129,.2)"><div class="rev-kpi-v" style="color:var(--mint)">1.84M</div><div class="rev-kpi-l">إيرادات الشهر</div><div class="rev-kpi-c" style="color:var(--mint)">87.6% الهدف</div></div>
+      <div class="rev-kpi" style="background:var(--amber-l);border-color:rgba(245,158,11,.2)"><div class="rev-kpi-v" style="color:var(--amber)">2.1M</div><div class="rev-kpi-l">الهدف الشهري</div><div class="rev-kpi-c" style="color:var(--peach)">260K متبقي</div></div>
+    </div>
+    <div class="rev-charts fi fi2">
+      <div class="card" style="padding:var(--pad)"><div class="chart-h2"><canvas id="barChart"></canvas></div></div>
+      <div class="card" style="padding:var(--pad);display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin-bottom:8px">مصادر الإيرادات</div>
+        <div class="chart-h3" style="width:100%"><canvas id="revDonut"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ S10 TECH STACK ══ -->
+<div class="scene scene-light" id="s10">
+  <div class="s-header">
+    <div class="scene-num">🛠️ 10 — الأدوات المستخدمة</div>
+    <div class="scene-h">Tech Stack — <span>تقنيات كاملة</span></div>
+    <div class="scene-p">كل أداة لها دور محوري — تظهر بتسلسل عند دخول المشهد</div>
+  </div>
+  <div class="tech-scene">
+    <div class="tech-main-grid" id="techGrid">
+      <div class="tech-card" style="--tc:var(--teal)"><div class="tech-ico">🐍</div><div class="tech-name" style="color:var(--teal)">Python 3.x</div><div class="tech-desc">منطق التطبيق · معالجة البيانات · الخوارزميات</div><div class="tech-pill" style="background:var(--teal-l);color:var(--teal)">Core Language</div></div>
+      <div class="tech-card" style="--tc:var(--rose)"><div class="tech-ico">🚀</div><div class="tech-name" style="color:var(--rose)">Streamlit</div><div class="tech-desc">الواجهة التفاعلية · النماذج · التبويبات · Session State</div><div class="tech-pill" style="background:var(--rose-l);color:var(--rose)">Web Framework</div></div>
+      <div class="tech-card" style="--tc:var(--violet)"><div class="tech-ico">📊</div><div class="tech-name" style="color:var(--violet)">Plotly</div><div class="tech-desc">Bar · Line · Pie · Gauge · Heatmap · Scatter</div><div class="tech-pill" style="background:var(--violet-l);color:var(--violet)">Data Visualization</div></div>
+      <div class="tech-card" style="--tc:var(--sky)"><div class="tech-ico">🔢</div><div class="tech-name" style="color:var(--sky)">NumPy</div><div class="tech-desc">mean · random · linspace للعمليات الإحصائية</div><div class="tech-pill" style="background:var(--sky-l);color:var(--sky)">Math & Stats</div></div>
+      <div class="tech-card" style="--tc:var(--peach)"><div class="tech-ico">💾</div><div class="tech-name" style="color:var(--peach)">JSON Storage</div><div class="tech-desc">hospital_db.json · load_db / save_db تلقائي</div><div class="tech-pill" style="background:var(--peach-l);color:var(--peach)">Persistent Storage</div></div>
+      <div class="tech-card" style="--tc:var(--mint)"><div class="tech-ico">🔐</div><div class="tech-name" style="color:var(--mint)">SHA-256</div><div class="tech-desc">hashlib · تشفير كلمات المرور · صلاحيات الدخول</div><div class="tech-pill" style="background:var(--mint-l);color:var(--mint)">Security</div></div>
+    </div>
+    <div class="card fi fi4" style="padding:var(--pad)">
+      <div style="font-size:var(--fs-xs);font-weight:700;color:var(--text);margin-bottom:var(--gap)">⚡ مميزات تقنية من الكود</div>
+      <div class="tech-feat-grid">
+        <div class="tech-feat"><div class="tech-feat-ico">📱</div><div class="tech-feat-lbl">واجهة RTL</div><div class="tech-feat-val">عربي كامل</div></div>
+        <div class="tech-feat"><div class="tech-feat-ico">🎨</div><div class="tech-feat-lbl">CSS مخصص</div><div class="tech-feat-val">IBM Plex Arabic</div></div>
+        <div class="tech-feat"><div class="tech-feat-ico">⏱️</div><div class="tech-feat-lbl">Session State</div><div class="tech-feat-val">حفظ لحظي</div></div>
+        <div class="tech-feat"><div class="tech-feat-ico">🔄</div><div class="tech-feat-lbl">st.rerun()</div><div class="tech-feat-val">تحديث ديناميكي</div></div>
+        <div class="tech-feat"><div class="tech-feat-ico">📋</div><div class="tech-feat-lbl">st.tabs()</div><div class="tech-feat-val">تبويبات</div></div>
+        <div class="tech-feat"><div class="tech-feat-ico">📝</div><div class="tech-feat-lbl">st.form()</div><div class="tech-feat-val">نماذج متكاملة</div></div>
+        <div class="tech-feat"><div class="tech-feat-ico">🗃️</div><div class="tech-feat-lbl">st.sidebar</div><div class="tech-feat-val">شريط جانبي</div></div>
+        <div class="tech-feat"><div class="tech-feat-ico">📅</div><div class="tech-feat-lbl">Datetime</div><div class="tech-feat-val">تواريخ ذكية</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ S11 HOSPITAL VALUE ══ -->
+<div class="scene scene-light" id="s11">
+  <div class="s-header">
+    <div class="scene-num">🏥 11 — القيمة المضافة</div>
+    <div class="scene-h">ماذا <span>يضيف</span> هذا النظام؟</div>
+    <div class="scene-p">تحويل العمل اليدوي إلى نظام ذكي يوفّر الوقت ويُنقذ الأرواح</div>
+  </div>
+  <div class="val-scene">
+    <div class="val-header-cards" id="valCards">
+      <div class="val-hcard" style="background:var(--rose-l);border:1.5px solid rgba(232,98,154,.25)"><div class="val-hcard-ico">⏱️</div><div class="val-hcard-val" style="color:var(--rose)">60%</div><div class="val-hcard-lbl" style="color:var(--rose)">توفير وقت الإدارة</div></div>
+      <div class="val-hcard" style="background:var(--mint-l);border:1.5px solid rgba(16,185,129,.25)"><div class="val-hcard-ico">📉</div><div class="val-hcard-val" style="color:var(--mint)">25%</div><div class="val-hcard-lbl" style="color:var(--mint)">تقليل الزيارات الطارئة</div></div>
+      <div class="val-hcard" style="background:var(--violet-l);border:1.5px solid rgba(139,92,246,.25)"><div class="val-hcard-ico">🎯</div><div class="val-hcard-val" style="color:var(--violet)">91%</div><div class="val-hcard-lbl" style="color:var(--violet)">دقة التنبؤ بالإشغال</div></div>
+      <div class="val-hcard" style="background:var(--peach-l);border:1.5px solid rgba(249,115,22,.25)"><div class="val-hcard-ico">💰</div><div class="val-hcard-val" style="color:var(--peach)">+12%</div><div class="val-hcard-lbl" style="color:var(--peach)">نمو الإيرادات</div></div>
+    </div>
+    <div class="val-benefits">
+      <div class="val-col">
+        <div class="val-section-title" style="background:var(--rose-l);color:var(--rose);border:1.5px solid rgba(232,98,154,.2)">🏥 للمستشفى والإدارة</div>
+        <div class="val-item" style="border-color:var(--rose)"><div class="val-item-ico">📊</div><div><div class="val-item-title">لوحة تحكم مركزية</div><div class="val-item-desc">مرضى · أطباء · أسرة · أدوية · ماليات في مكان واحد</div></div></div>
+        <div class="val-item" style="border-color:var(--mint)"><div class="val-item-ico">⚡</div><div><div class="val-item-title">تنبيه مسبق للأزمات</div><div class="val-item-desc">يُحذّر من امتلاء ICU والطوارئ قبل وقوعها بساعات</div></div></div>
+        <div class="val-item" style="border-color:var(--violet)"><div class="val-item-ico">📄</div><div><div class="val-item-title">تقارير ذكية تلقائية</div><div class="val-item-desc">صحية · مالية · مخزون — تُولَّد من البيانات الفعلية</div></div></div>
+        <div class="val-item" style="border-color:var(--sky)"><div class="val-item-ico">💊</div><div><div class="val-item-title">مخزون دوائي آمن</div><div class="val-item-desc">تنبيهات نقص وانتهاء صلاحية مع اقتراح الطلبيات</div></div></div>
+      </div>
+      <div class="val-col">
+        <div class="val-section-title" style="background:var(--violet-l);color:var(--violet);border:1.5px solid rgba(139,92,246,.2)">👨‍⚕️ للأطباء والكادر الطبي</div>
+        <div class="val-item" style="border-color:var(--violet)"><div class="val-item-ico">🩺</div><div><div class="val-item-title">سجل طبي كامل</div><div class="val-item-desc">تاريخ تشخيصات كامل لكل مريض — إضافة بدون مسح القديم</div></div></div>
+        <div class="val-item" style="border-color:var(--teal)"><div class="val-item-ico">📅</div><div><div class="val-item-title">إدارة المواعيد الذكية</div><div class="val-item-desc">جدولة سهلة مع تتبع الحالة وتقليل التعارضات</div></div></div>
+        <div class="val-item" style="border-color:var(--peach)"><div class="val-item-ico">🔐</div><div><div class="val-item-title">نظام صلاحيات دقيق</div><div class="val-item-desc">كل دور يرى فقط ما يخصه — SHA-256 تشفير</div></div></div>
+        <div class="val-item" style="border-color:var(--rose)"><div class="val-item-ico">🤖</div><div><div class="val-item-title">توقعات AI داعمة</div><div class="val-item-desc">قرارات مبنية على بيانات — دقة 77% إلى 91%</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ S12 ROLES ══ -->
+<div class="scene scene-light" id="s12">
+  <div class="s-header">
+    <div class="scene-num">🔐 12 — الأدوار والصلاحيات</div>
+    <div class="scene-h">4 أدوار — <span>نظام صلاحيات</span></div>
+    <div class="scene-p">SHA-256 تشفير · hospital_db.json حفظ دائم</div>
+  </div>
+  <div class="sys-scene">
+    <div class="roles-grid" id="rolesGrid">
+      <div class="role-c"><div class="role-ic">👑</div><div class="role-nm">مدير النظام</div><div class="role-user">admin / admin123</div><div style="margin-top:9px"><span class="perm-tag">all permissions</span><span class="perm-tag">إدارة المستخدمين</span><span class="perm-tag">كل التقارير</span></div></div>
+      <div class="role-c"><div class="role-ic">👨‍⚕️</div><div class="role-nm">طبيب</div><div class="role-user">doctor / doctor123</div><div style="margin-top:9px"><span class="perm-tag">عرض المرضى</span><span class="perm-tag">إضافة مواعيد</span></div></div>
+      <div class="role-c"><div class="role-ic">👩‍⚕️</div><div class="role-nm">ممرضة</div><div class="role-user">nurse / nurse123</div><div style="margin-top:9px"><span class="perm-tag">عرض المرضى</span><span class="perm-tag">تحديث الحالة</span></div></div>
+      <div class="role-c"><div class="role-ic">💼</div><div class="role-nm">استقبال</div><div class="role-user">reception / reception123</div><div style="margin-top:9px"><span class="perm-tag">إضافة مرضى</span><span class="perm-tag">إضافة مواعيد</span></div></div>
+    </div>
+    <div class="card" style="padding:var(--pad)">
+      <div style="font-size:var(--fs-sm);font-weight:700;color:var(--text);margin-bottom:var(--gap)">📦 ما يحفظه النظام في hospital_db.json</div>
+      <div class="db-keys-grid">
+        <div class="db-key" style="background:var(--rose-l);border-color:rgba(232,98,154,.2)"><div style="font-size:clamp(14px,2vw,16px);margin-bottom:3px">👥</div><div style="font-size:var(--fs-xs);color:var(--rose);font-weight:700">patients</div><div style="font-size:clamp(7px,1vw,9px);color:var(--muted)">ملفات المرضى</div></div>
+        <div class="db-key" style="background:var(--violet-l);border-color:rgba(139,92,246,.2)"><div style="font-size:clamp(14px,2vw,16px);margin-bottom:3px">👨‍⚕️</div><div style="font-size:var(--fs-xs);color:var(--violet);font-weight:700">doctors</div><div style="font-size:clamp(7px,1vw,9px);color:var(--muted)">ملفات الأطباء</div></div>
+        <div class="db-key" style="background:var(--mint-l);border-color:rgba(16,185,129,.2)"><div style="font-size:clamp(14px,2vw,16px);margin-bottom:3px">💊</div><div style="font-size:var(--fs-xs);color:var(--mint);font-weight:700">medicines</div><div style="font-size:clamp(7px,1vw,9px);color:var(--muted)">مخزون الأدوية</div></div>
+        <div class="db-key" style="background:var(--peach-l);border-color:rgba(249,115,22,.2)"><div style="font-size:clamp(14px,2vw,16px);margin-bottom:3px">🛏️</div><div style="font-size:var(--fs-xs);color:var(--peach);font-weight:700">bed_stats</div><div style="font-size:clamp(7px,1vw,9px);color:var(--muted)">حالة الأسرة</div></div>
+        <div class="db-key" style="background:var(--sky-l);border-color:rgba(14,165,233,.2)"><div style="font-size:clamp(14px,2vw,16px);margin-bottom:3px">📅</div><div style="font-size:var(--fs-xs);color:var(--sky);font-weight:700">appointments</div><div style="font-size:clamp(7px,1vw,9px);color:var(--muted)">المواعيد</div></div>
+        <div class="db-key" style="background:var(--amber-l);border-color:rgba(245,158,11,.2)"><div style="font-size:clamp(14px,2vw,16px);margin-bottom:3px">🔔</div><div style="font-size:var(--fs-xs);color:var(--amber);font-weight:700">notifications</div><div style="font-size:clamp(7px,1vw,9px);color:var(--muted)">الإشعارات</div></div>
+        <div class="db-key" style="background:var(--lav-l);border-color:rgba(129,140,248,.2)"><div style="font-size:clamp(14px,2vw,16px);margin-bottom:3px">👤</div><div style="font-size:var(--fs-xs);color:var(--lav);font-weight:700">users</div><div style="font-size:clamp(7px,1vw,9px);color:var(--muted)">المستخدمون</div></div>
+        <div class="db-key" style="background:var(--teal-l);border-color:rgba(13,148,136,.2)"><div style="font-size:clamp(14px,2vw,16px);margin-bottom:3px">⚙️</div><div style="font-size:var(--fs-xs);color:var(--teal);font-weight:700">settings</div><div style="font-size:clamp(7px,1vw,9px);color:var(--muted)">الإعدادات</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ S13 OUTRO ══ -->
+<div class="scene" id="s13">
+  <div class="s0-par" id="par13"></div>
+  <div class="ring" style="width:250px;height:250px;top:50%;left:50%;transform-origin:0 0;border-color:rgba(139,92,246,.2);animation-delay:0s"></div>
+  <div class="ring" style="width:530px;height:530px;top:50%;left:50%;transform-origin:0 0;border-color:rgba(232,98,154,.15);animation-delay:1.6s"></div>
+  <div class="s13-c">
+    <span class="s13-crown">👑</span>
+    <div class="s13-thanks">شكراً <span>لكم</span></div>
+    <div class="s13-en">Thank You</div>
+    <div class="s13-div"></div>
+    <div class="s13-name">Mouna Guirat</div>
+    <div class="s13-role">Business Intelligence Developer</div>
+    <div class="s13-email">📧 <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a7cac8d2c9c6c0d2ced5c6d39697e7c0cac6cecb89c4c8ca">[email&#160;protected]</a></div>
+    <div class="s13-tags">
+      <span class="s13-tag">🐍 Python</span><span class="s13-tag">🚀 Streamlit</span>
+      <span class="s13-tag">📊 Plotly</span><span class="s13-tag">🤖 AI/ML</span>
+      <span class="s13-tag">💾 JSON</span><span class="s13-tag">🔐 SHA-256</span>
+      <span class="s13-tag">🏥 HealthTech</span>
+    </div>
+    <div class="s13-quote">"البيانات الصحيحة تُنقذ الأرواح — والذكاء الاصطناعي يجعلها في متناول يدك"</div>
+    <div class="s13-ver">Smart Hospital BI System · v3.2 · 2025–2026</div>
+  </div>
+</div>
+
+</div><!-- /video -->
+
+<!-- CONTROLS -->
+<div id="ctrl">
+  <button class="cb" onclick="prev()">‹</button>
+  <div class="cdots" id="cdots"></div>
+  <button class="cb play" id="playBtn" onclick="togglePlay()">▶</button>
+  <div class="clbl" id="clbl">1 / 14</div>
+  <button class="cb" onclick="next()">›</button>
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+/* ═══ UTILITIES ═══ */
+const $ = id => document.getElementById(id);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+/* ═══ PARTICLES ═══ */
+function makeParticles(id,n){
+  const c=$(id);if(!c)return;
+  const cols=['rgba(232,98,154,.6)','rgba(139,92,246,.5)','rgba(14,165,233,.45)','rgba(16,185,129,.5)','rgba(249,115,22,.4)'];
+  for(let i=0;i<n;i++){
+    const p=document.createElement('div');const s=Math.random()*5+2;
+    p.className='par';
+    p.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;background:${cols[Math.floor(Math.random()*cols.length)]};animation-duration:${Math.random()*9+7}s;animation-delay:${Math.random()*8}s;`;
+    c.appendChild(p);
+  }
+}
+makeParticles('par0',40);makeParticles('par13',40);
+
+/* ═══ CHART.JS DEFAULTS ═══ */
+Chart.defaults.font.family="'Poppins',sans-serif";
+Chart.defaults.font.size=10;
+Chart.defaults.color='#6b7280';
+
+/* ═══ CHART REGISTRY ═══ */
+const charts={};
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+/* ═══ DOUGHNUT HELPER — animated on build ═══ */
+function makeDoughnut(id,occ,color,bg='#f1f5f9'){
+  destroyChart(id);
+  const ctx=$(id);if(!ctx)return;
+  charts[id]=new Chart(ctx,{
+    type:'doughnut',
+    data:{datasets:[{data:[occ,100-occ],backgroundColor:[color,bg],borderWidth:0,hoverOffset:4}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'72%',
+      animation:{duration:1200,easing:'easeOutCubic'},
+      plugins:{legend:{display:false},tooltip:{enabled:false}}
+    }
+  });
+}
+
+/* ═══ BUILD ALL BED DOUGHNUTS ═══ */
+function buildBedDoughnuts(){
+  destroyChart('overallDonut');
+  charts['overallDonut']=new Chart($('overallDonut'),{
+    type:'doughnut',
+    data:{datasets:[{data:[75.6,24.4],backgroundColor:['#e8629a','#f1f5f9'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'72%',animation:{duration:1400,easing:'easeOutCubic'},plugins:{legend:{display:false},tooltip:{enabled:false}}}
+  });
+  const dept=[['d_icu',80,'#ef4444'],['d_em',80,'#f97316'],['d_sur',76,'#8b5cf6'],['d_nicu',73,'#10b981'],['d_iso',60,'#0ea5e9'],['d_gen',75,'#0d9488']];
+  dept.forEach(([id,occ,col],i)=>setTimeout(()=>makeDoughnut(id,occ,col),i*120+300));
+}
+
+/* ═══ BUILD LINE CHART — animated draw ═══ */
+function buildLineChart(){
+  destroyChart('lineChart');
+  const days=Array.from({length:14},(_,i)=>{const d=new Date();d.setDate(d.getDate()-13+i);return `${d.getDate()}/${d.getMonth()+1}`;});
+  const actual=[38,45,42,56,48,62,55,70,60,52,65,72,68,67];
+  const avg=Math.round(actual.reduce((a,b)=>a+b)/actual.length);
+  const el=$('sAvg');if(el)el.textContent=avg;
+  charts['lineChart']=new Chart($('lineChart'),{
+    type:'line',
+    data:{labels:days,datasets:[
+      {label:'فعلي',data:actual,borderColor:'#e8629a',backgroundColor:'rgba(232,98,154,.07)',borderWidth:2.5,pointBackgroundColor:'#e8629a',pointRadius:3.5,tension:.4,fill:true},
+      {label:'AI متوقع',data:[39,46,43,57,49,63,56,71,61,53,66,73,69,68],borderColor:'#8b5cf6',borderDash:[5,3],borderWidth:2,pointRadius:0,tension:.4}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      animation:{duration:1500,easing:'easeOutCubic'},
+      plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,backgroundColor:'#fff',titleColor:'#1e1b4b',bodyColor:'#6b7280',borderColor:'rgba(232,98,154,.2)',borderWidth:1}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,.04)'}}}
+    }
+  });
+}
+
+/* ═══ BUILD REVENUE CHARTS — animated ═══ */
+function buildRevCharts(){
+  destroyChart('barChart');destroyChart('revDonut');
+  charts['barChart']=new Chart($('barChart'),{
+    type:'bar',
+    data:{labels:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'],
+      datasets:[
+        {label:'إيرادات',data:[65,72,68,75,70,71,48],backgroundColor:'rgba(232,98,154,.75)',borderRadius:5,borderSkipped:false},
+        {label:'مصروفات',data:[38,42,40,44,41,43,29],backgroundColor:'rgba(139,92,246,.4)',borderRadius:5,borderSkipped:false}
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:1200,easing:'easeOutCubic'},plugins:{legend:{labels:{boxWidth:10,padding:8}}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,.04)'},ticks:{callback:v=>v+'K'}}}}
+  });
+  charts['revDonut']=new Chart($('revDonut'),{
+    type:'doughnut',
+    data:{labels:['استشارات','عمليات','مخبر','صيدلية','أشعة'],datasets:[{data:[37,30,17,10,6],backgroundColor:['#e8629a','#8b5cf6','#10b981','#f97316','#0ea5e9'],borderWidth:2,borderColor:'#fff',hoverOffset:4}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:1300,easing:'easeOutCubic'},plugins:{legend:{position:'right',labels:{boxWidth:9,padding:7,font:{size:9}}}},cutout:'60%'}
+  });
+}
+
+/* ═══ COUNTER ANIMATION ═══ */
+function animCount(el,target,dur=1100){
+  let s=0;const step=target/60;
+  const t=setInterval(()=>{s=Math.min(s+step,target);el.textContent=Math.floor(s).toLocaleString('ar');if(s>=target)clearInterval(t);},dur/60);
+}
+
+/* ═══ GENERIC BAR ANIMATIONS ═══ */
+function animBars(selector){
+  document.querySelectorAll(selector).forEach((el,i)=>{
+    setTimeout(()=>{el.style.width=el.dataset.w||'0%';},i*80+100);
+  });
+}
+
+/* ═══ SCENE ENTER CALLBACKS ═══ */
+const onEnter={
+  1(){
+    document.querySelectorAll('#kpiGrid .kpi-c').forEach((el,i)=>setTimeout(()=>el.classList.add('show'),i*80));
+    setTimeout(()=>{
+      animCount($('k1'),5);animCount($('k2'),6);
+      animCount($('k3'),3);animCount($('k4'),10);animCount($('k5'),4);
+    },200);
+  },
+  2(){
+    // Main bar appears first
+    setTimeout(()=>{ $('mainBedBar').style.width='75.6%'; }, 200);
+    // Each donut card appears 420ms apart — clear sequential reveal
+    document.querySelectorAll('#bedsDonutGrid .donut-card').forEach((el,i)=>{
+      setTimeout(()=>{
+        el.classList.add('show');
+        // Build ONLY this card's chart when it appears
+        const ids=['d_icu','d_em','d_sur','d_nicu','d_iso','d_gen'];
+        const occs=[80,80,76,73,60,75];
+        const cols=['#ef4444','#f97316','#8b5cf6','#10b981','#0ea5e9','#0d9488'];
+        makeDoughnut(ids[i], occs[i], cols[i]);
+      }, 600 + i * 420);
+    });
+    // Overall donut appears with the bar
+    setTimeout(()=>{
+      destroyChart('overallDonut');
+      charts['overallDonut']=new Chart($('overallDonut'),{
+        type:'doughnut',
+        data:{datasets:[{data:[75.6,24.4],backgroundColor:['#e8629a','#f1f5f9'],borderWidth:0}]},
+        options:{responsive:true,maintainAspectRatio:false,cutout:'72%',animation:{duration:1400,easing:'easeOutCubic'},plugins:{legend:{display:false},tooltip:{enabled:false}}}
+      });
+    }, 400);
+  },
+  3(){
+    document.querySelectorAll('#patRows .pat-row').forEach((el,i)=>{
+      setTimeout(()=>{el.style.opacity='1';el.style.transform='translateX(0)';},300+i*200);
+    });
+  },
+  4(){ document.querySelectorAll('#docGrid .doc-c').forEach((el,i)=>setTimeout(()=>el.classList.add('show'),i*100)); },
+  5(){ buildLineChart(); },
+  6(){
+    document.querySelectorAll('#aiCards .ai-c').forEach((el,i)=>setTimeout(()=>el.classList.add('show'),i*100));
+    setTimeout(()=>animBars('#s6 .conf-fill, #s6 .risk-bar-fill'),500);
+  },
+  7(){
+    document.querySelectorAll('#medGrid .med-c').forEach((el,i)=>setTimeout(()=>{
+      el.classList.add('show');
+      el.querySelectorAll('.med-bar-fill').forEach(b=>setTimeout(()=>{b.style.width=b.dataset.w||'0%';},350));
+    },i*75));
+  },
+  8(){ document.querySelectorAll('#aptCards .apt-c').forEach((el,i)=>setTimeout(()=>el.classList.add('show'),i*150)); },
+  9(){ buildRevCharts(); },
+  10(){ document.querySelectorAll('#techGrid .tech-card').forEach((el,i)=>setTimeout(()=>el.classList.add('show'),i*100)); },
+  11(){ document.querySelectorAll('#valCards .val-hcard').forEach((el,i)=>setTimeout(()=>el.classList.add('show'),i*100)); },
+  12(){ document.querySelectorAll('#rolesGrid .role-c').forEach((el,i)=>setTimeout(()=>el.classList.add('show'),i*100)); },
+};
+
+/* ═══ SCENE LEAVE CALLBACKS ═══ */
+const onLeave={
+  1(){ document.querySelectorAll('#kpiGrid .kpi-c').forEach(el=>el.classList.remove('show')); },
+  2(){
+    $('mainBedBar').style.width='0%';
+    document.querySelectorAll('#bedsDonutGrid .donut-card').forEach(el=>el.classList.remove('show'));
+    ['overallDonut','d_icu','d_em','d_sur','d_nicu','d_iso','d_gen'].forEach(destroyChart);
+  },
+  3(){ document.querySelectorAll('#patRows .pat-row').forEach(el=>{el.style.opacity='0';el.style.transform='translateX(20px)';});},
+  4(){ document.querySelectorAll('#docGrid .doc-c').forEach(el=>el.classList.remove('show')); },
+  5(){ destroyChart('lineChart'); },
+  6(){
+    document.querySelectorAll('#aiCards .ai-c').forEach(el=>el.classList.remove('show'));
+    document.querySelectorAll('#s6 .conf-fill, #s6 .risk-bar-fill').forEach(b=>b.style.width='0%');
+  },
+  7(){
+    document.querySelectorAll('#medGrid .med-c').forEach(el=>{
+      el.classList.remove('show');
+      el.querySelectorAll('.med-bar-fill').forEach(b=>b.style.width='0%');
+    });
+  },
+  8(){ document.querySelectorAll('#aptCards .apt-c').forEach(el=>el.classList.remove('show')); },
+  9(){ destroyChart('barChart');destroyChart('revDonut'); },
+  10(){ document.querySelectorAll('#techGrid .tech-card').forEach(el=>el.classList.remove('show')); },
+  11(){ document.querySelectorAll('#valCards .val-hcard').forEach(el=>el.classList.remove('show')); },
+  12(){ document.querySelectorAll('#rolesGrid .role-c').forEach(el=>el.classList.remove('show')); },
+};
+
+/* ═══ SLIDESHOW ENGINE ═══ */
+const TOTAL=14, DUR=8000;
+let cur=0, playing=false, timer=null;
+const scenes=document.querySelectorAll('.scene');
+const dotsEl=$('cdots');
+const lbl=$('clbl');
+const pf=$('pfill');
+const playBtn=$('playBtn');
+
+for(let i=0;i<TOTAL;i++){
+  const d=document.createElement('div');
+  d.className='cdot'+(i===0?' on':'');
+  d.onclick=()=>goTo(i);
+  dotsEl.appendChild(d);
+}
+
+function goTo(n){
+  if(onLeave[cur])onLeave[cur]();
+  scenes[cur].classList.remove('active');
+  dotsEl.children[cur].classList.remove('on');
+  cur=n;
+  scenes[cur].classList.add('active');
+  dotsEl.children[cur].classList.add('on');
+  lbl.textContent=`${cur+1} / ${TOTAL}`;
+  pf.style.width=`${((cur+1)/TOTAL)*100}%`;
+  if(onEnter[cur])setTimeout(()=>onEnter[cur](),320);
+}
+function next(){goTo((cur+1)%TOTAL);if(playing)resetTimer();}
+function prev(){goTo((cur-1+TOTAL)%TOTAL);if(playing)resetTimer();}
+function togglePlay(){playing=!playing;playBtn.textContent=playing?'⏸':'▶';playing?startTimer():clearInterval(timer);}
+function startTimer(){timer=setInterval(next,DUR);}
+function resetTimer(){clearInterval(timer);if(playing)startTimer();}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key==='ArrowDown')next();
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp')prev();
+  if(e.key===' '){e.preventDefault();togglePlay();}
+});
+
+// Touch swipe support (for tablets)
+let touchX=0;
+document.addEventListener('touchstart',e=>touchX=e.touches[0].clientX,{passive:true});
+document.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-touchX;
+  if(Math.abs(dx)>60){dx<0?next():prev();}
+},{passive:true});
+
+pf.style.width=`${(1/TOTAL)*100}%`;
+setTimeout(()=>togglePlay(),1300);
+</script>
+</body>
+</html>
